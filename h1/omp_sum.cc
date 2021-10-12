@@ -33,7 +33,7 @@ void TestSumBasic() {
     if (result != expected) {
         cout << "wrong" << std::endl;
     } else {
-        cout << "success" << std::endl;
+        cout << "ok" << std::endl;
     }
 }
 
@@ -60,7 +60,7 @@ void TestSumRand() {
     if (result != expected) {
         cout << "wrong" << std::endl;
     } else {
-        cout << "success" << std::endl;
+        cout << "ok" << std::endl;
     }
 }
 

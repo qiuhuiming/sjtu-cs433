@@ -10,8 +10,8 @@ using std::cout;
  * Sum is used to compute the sum of a vector using OpenMP.
  * @param x: the input vector.
  * @param n: the length of x.
- * @param result: the pointer to the output result.
  * @param k: thread count.
+ * @return sum: the sum of the vector.
  */
 template <typename T>
 T Sum(const T* const x, const size_t n, const size_t k);

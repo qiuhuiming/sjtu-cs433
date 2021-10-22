@@ -35,7 +35,7 @@ int main() {
             MPI_Send(buf, 2, MPI_UNSIGNED_LONG, 1, 0, MPI_COMM_WORLD);
             MPI_Recv(buf, 2, MPI_UNSIGNED_LONG, 1, 0, MPI_COMM_WORLD, &st);
             unsigned long rtt = get_current_timestamp_microseconds() - buf[1];
-            printf("ACK: package_id: %ld, rtt: %ldus\n", buf[0], rtt);
+            printf("Task 0: package_id = %ld, rtt = %ldus\n", buf[0], rtt);
         }
     } else {
         for (int package_id = 1; package_id <= total_packages; package_id++) {

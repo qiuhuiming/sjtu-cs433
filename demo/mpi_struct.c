@@ -12,7 +12,7 @@ struct PassMessage {
 };
 
 struct RecordMessage {
-    int is_last;
+    int code;
     int id;
     char word[MAX_WORD_LENGTH];
 };
@@ -28,13 +28,13 @@ void ReceivePassStringMessage(struct PassMessage *msg, int src, struct MPI_Statu
 }
 
 void SendRecordMessage(struct RecordMessage *msg, int dest) {
-    MPI_Send(&msg->is_last, 1, MPI_INT, dest, 0, MPI_COMM_WORLD);
+    MPI_Send(&msg->code, 1, MPI_INT, dest, 0, MPI_COMM_WORLD);
     MPI_Send(&msg->id, 1, MPI_INT, dest, 0, MPI_COMM_WORLD);
     MPI_Send(msg->word, MAX_WORD_LENGTH, MPI_CHAR, dest, 0, MPI_COMM_WORLD);
 }
 
 void ReceiveRecordMessage(struct RecordMessage *msg, int src, struct MPI_Status *st) {
-    MPI_Recv(&msg->is_last, 1, MPI_INT, src, 0, MPI_COMM_WORLD, st);
+    MPI_Recv(&msg->code, 1, MPI_INT, src, 0, MPI_COMM_WORLD, st);
     MPI_Recv(&msg->id, 1, MPI_INT, src, 0, MPI_COMM_WORLD, st);
     MPI_Recv(msg->word, MAX_WORD_LENGTH, MPI_CHAR, src, 0, MPI_COMM_WORLD, st);
 }
@@ -99,14 +99,14 @@ int main() {
                  MPI_COMM_WORLD);
         printf("after send\n");
         MPI_Recv(&record_buf, sizeof(struct RecordMessage), MPI_CHAR, 1, 0, MPI_COMM_WORLD, &st);
-        printf("is_last:%d, id:%d, word:%s\n", record_buf.is_last, record_buf.id, record_buf.word);
+        printf("is_last:%d, id:%d, word:%s\n", record_buf.code, record_buf.id, record_buf.word);
     } else {
         struct MPI_Status st;
         MPI_Recv(&pass_buf, sizeof(struct PassMessage), MPI_CHAR, 0, 0, MPI_COMM_WORLD, &st);
         int trim = 0;
         char* nextSentense = NextWordPtr(pass_buf.pass_string, &trim);
         strncpy(record_buf.word, "absdshaljkff\0", 20);
-        record_buf.is_last = 1;
+        record_buf.code = 1;
         record_buf.id = my_rank;
         MPI_Send(&record_buf, sizeof(struct RecordMessage), MPI_CHAR, 0, 0, MPI_COMM_WORLD);
     }

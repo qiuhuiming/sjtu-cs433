@@ -4,4 +4,4 @@ rtt:
 
 ps:
 	mpicc -g -Wall -o mpi_pass_string mpi_pass_string.c
-	mpiexec -n 5 ./mpi_pass_string
+	mpiexec -n 10 ./mpi_pass_string

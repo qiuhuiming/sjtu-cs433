@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define MAX_WORD_LENGTH 20
 #define TOTAL_STRING_LENGTH 200
@@ -12,7 +13,10 @@ struct PassMessage {
 };
 
 struct RecordMessage {
-    int is_last;
+    // 0: word is string
+    // 1: word is id, and exit
+    // 2: exit
+    int code;
     int id;
     char word[MAX_WORD_LENGTH];
 };
@@ -29,14 +33,14 @@ void ReceivePassStringMessage(struct PassMessage *msg, int src,
 }
 
 void SendRecordMessage(struct RecordMessage *msg, int dest) {
-    MPI_Send(&msg->is_last, 1, MPI_INT, dest, 0, MPI_COMM_WORLD);
+    MPI_Send(&msg->code, 1, MPI_INT, dest, 0, MPI_COMM_WORLD);
     MPI_Send(&msg->id, 1, MPI_INT, dest, 0, MPI_COMM_WORLD);
     MPI_Send(msg->word, MAX_WORD_LENGTH, MPI_CHAR, dest, 0, MPI_COMM_WORLD);
 }
 
 void ReceiveRecordMessage(struct RecordMessage *msg, int src,
                           struct MPI_Status *st) {
-    MPI_Recv(&msg->is_last, 1, MPI_INT, src, 0, MPI_COMM_WORLD, st);
+    MPI_Recv(&msg->code, 1, MPI_INT, src, 0, MPI_COMM_WORLD, st);
     MPI_Recv(&msg->id, 1, MPI_INT, src, 0, MPI_COMM_WORLD, st);
     MPI_Recv(msg->word, MAX_WORD_LENGTH, MPI_CHAR, src, 0, MPI_COMM_WORLD, st);
 }
@@ -104,18 +108,16 @@ int main() {
         MPI_Send(&pass_buf, sizeof(struct PassMessage), MPI_CHAR, 1, 0,
                  MPI_COMM_WORLD);
         int current_sender = 1;
-        int have_printed_end = 0;
         while (total_sender > 0) {
             // printf("try to receive from %d; remain sender: %d\n",
             //    current_sender, total_sender);
             MPI_Recv(&record_buf, sizeof(struct RecordMessage), MPI_CHAR,
                      current_sender, 0, MPI_COMM_WORLD, &st);
-            if (record_buf.is_last) {
+            if (record_buf.code) {
                 total_sender--;
-                if (!have_printed_end) {
+                if (record_buf.code == 1) {
                     printf("child #%d: %s\n", record_buf.id, record_buf.word);
                     printf("end.\n");
-                    have_printed_end = 1;
                 }
             } else {
                 printf("child #%d: %s\n", record_buf.id, record_buf.word);
@@ -133,17 +135,18 @@ int main() {
             MPI_Recv(&pass_buf, sizeof(struct PassMessage), MPI_CHAR,
                      first_recv ? my_rank - 1 : LastSender(my_rank, comm_sz), 0,
                      MPI_COMM_WORLD, &st);
-
+            sleep(1);
             first_recv = 0;
+
             if (pass_buf.is_end) {
-                // Send end signal to next sender.
-                MPI_Send(&pass_buf, sizeof(struct PassMessage), MPI_CHAR,
-                         NextSender(my_rank, comm_sz), 0, MPI_COMM_WORLD);
                 // Notify the master that the process is end.
-                record_buf.is_last = 1;
+                record_buf.code = 2;
                 record_buf.id = my_rank;
                 MPI_Send(&record_buf, sizeof(struct RecordMessage), MPI_CHAR, 0,
                          0, MPI_COMM_WORLD);
+                // Send end signal to next sender.
+                MPI_Send(&pass_buf, sizeof(struct PassMessage), MPI_CHAR,
+                         NextSender(my_rank, comm_sz), 0, MPI_COMM_WORLD);
                 break;
             }
 
@@ -153,27 +156,31 @@ int main() {
 
             if (next_sentense == NULL) {
                 // End.
-                pass_buf.is_end = 1;
-                MPI_Send(&pass_buf, sizeof(struct PassMessage), MPI_CHAR,
-                         NextSender(my_rank, comm_sz), 0, MPI_COMM_WORLD);
-                record_buf.is_last = 1;
+                record_buf.code = 1;
                 record_buf.id = my_rank;
                 sprintf(record_buf.word, "%d", my_rank);
                 MPI_Send(&record_buf, sizeof(struct RecordMessage), MPI_CHAR, 0,
                          0, MPI_COMM_WORLD);
+
+                pass_buf.is_end = 1;
+                MPI_Send(&pass_buf, sizeof(struct PassMessage), MPI_CHAR,
+                         NextSender(my_rank, comm_sz), 0, MPI_COMM_WORLD);
+
                 break;
             }
 
-            // Keep on passing string.
-            strcpy(pass_buf.pass_string, next_sentense);
-            MPI_Send(&pass_buf, sizeof(struct PassMessage), MPI_CHAR,
-                     NextSender(my_rank, comm_sz), 0, MPI_COMM_WORLD);
-            record_buf.is_last = 0;
+            record_buf.code = 0;
             record_buf.id = my_rank;
             strncpy(record_buf.word, pass_buf.pass_string, trimmed);
             record_buf.word[trimmed] = '\0';
             MPI_Send(&record_buf, sizeof(struct RecordMessage), MPI_CHAR, 0, 0,
                      MPI_COMM_WORLD);
+
+            // Keep on passing string.
+            strncpy(pass_buf.pass_string, next_sentense, strlen(next_sentense));
+            pass_buf.pass_string[strlen(next_sentense)] ='\0';
+            MPI_Send(&pass_buf, sizeof(struct PassMessage), MPI_CHAR,
+                     NextSender(my_rank, comm_sz), 0, MPI_COMM_WORLD);
         }
     }
 
